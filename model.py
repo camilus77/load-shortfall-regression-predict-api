@@ -24,8 +24,34 @@
 # Helper Dependencies
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 import pickle
 import json
+
+#Added these functions here because you cannot add a function inside a function
+#i.e pre-process function
+def Time_of_day(HourID):
+    if HourID<=5:
+        return 1
+    elif HourID>=6 and HourID<=12:
+        return 2
+    elif HourID>=13 and HourID<=15:
+        return 3
+    elif HourID>=16 and HourID<=19:
+        return 4
+    else:
+        return 5
+
+def Season(monthID):
+    if monthID>=6 and monthID<=8:
+        return 1
+    elif monthID>=9 and monthID<=11:
+        return 2
+    elif monthID==12 or monthID<=2:
+        return 3
+    else:
+        return 4
+
 
 def _preprocess_data(data):
     """Private helper function to preprocess data for model prediction.
@@ -58,7 +84,31 @@ def _preprocess_data(data):
     # ---------------------------------------------------------------
 
     # ----------- Replace this code with your own preprocessing steps --------
-    predict_vector = feature_vector_df[['Madrid_wind_speed','Bilbao_rain_1h','Valencia_wind_speed']]
+    #predict_vector = feature_vector_df[['Madrid_wind_speed','Bilbao_rain_1h','Valencia_wind_speed']]
+    df_test=feature_vector_df
+    
+    df_test= df_test.drop(['Unnamed: 0'], axis = 1)
+    df_test['Valencia_wind_deg'] = df_test['Valencia_wind_deg'].str.extract('(\d+)')
+    df_test['Valencia_wind_deg'] = pd.to_numeric(df_test['Valencia_wind_deg'])
+    df_test['Seville_pressure']=df_test['Seville_pressure'].str.extract('(\d+)')
+    df_test['Seville_pressure']=pd.to_numeric(df_test['Seville_pressure'])
+    df_test['time']=pd.to_datetime(df_test['time'])
+    df_test['year'] = df_test['time'].dt.year
+    df_test['month'] = df_test['time'].dt.month
+    df_test['day'] = df_test['time'].dt.day
+    df_test['hour'] = df_test['time'].dt.hour
+    df_test['week_day'] = df_test['time'].dt.dayofweek
+    df_test['Season']=df_test['month'].apply(lambda x:Season(x))
+    df_test['Time_of_day']=df_test['hour'].apply(lambda x:Time_of_day(x))
+    df_test=df_test.drop(['time','month','hour'], axis=1)
+    df_test['Wind_deg'] = df_test[['Valencia_wind_deg', 'Bilbao_wind_deg', 'Barcelona_wind_deg']].mean(axis=1)
+    df_test['Pressure'] = df_test[['Madrid_pressure', 'Valencia_pressure', 'Bilbao_pressure', 'Barcelona_pressure']].mean(axis=1)
+    df_test = df_test.drop(['Valencia_wind_deg', 'Bilbao_wind_deg', 'Barcelona_wind_deg', 'Madrid_pressure', 
+              'Valencia_pressure', 'Bilbao_pressure', 'Seville_pressure', 'Barcelona_pressure'], axis =1)
+    df_test=df_test.drop(['Barcelona_temp', 'Barcelona_temp_max','Madrid_temp', 'Madrid_temp_max','Seville_temp', 'Seville_temp_max','Bilbao_temp', 'Bilbao_temp_max','Valencia_temp', 'Valencia_temp_max'], axis=1)
+    X_scaled = StandardScaler().fit_transform(df_test )
+    df_test = pd.DataFrame(X_scaled,columns=df_test.columns)
+    predict_vector=df_test
     # ------------------------------------------------------------------------
 
     return predict_vector
